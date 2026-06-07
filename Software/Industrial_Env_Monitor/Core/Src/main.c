@@ -25,6 +25,7 @@
 #include "MYIIC.h"
 #include "SHT30.h"
 #include "RS485.h"
+#include "BH1750.h"
 #include "freertos_demo.h"
 /* USER CODE END Includes */
 
@@ -51,6 +52,7 @@ DMA_HandleTypeDef hdma_usart1_tx;
 /* USER CODE BEGIN PV */
 float temperature = 0.0f;
 float humidity = 0.0f;
+float light = 0.0f;
 uint8_t uart_tx[]="Hello, RS485!\r\n";
 /* USER CODE END PV */
 
@@ -102,32 +104,44 @@ int main(void)
   /* USER CODE BEGIN 2 */
   RS485_Init(&huart1, RS_485_DE_GPIO_Port, RS_485_DE_Pin);
   RS485_Send(uart_tx, sizeof(uart_tx)-1);
-  //SHT30_Init();
+  BH1750_Init();
+  SHT30_Init();
 	//FreeRTOS_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+while (1)
+{
+    // ================== 读取 SHT30 ==================
+    if(SHT30_Read_Data(&temperature, &humidity) == 0)
+    {
+        printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
+    }
+    else
+    {
+        printf("SHT30 读取失败!\r\n");
+    }
+
+    // ================== 读取 BH1750 ==================
+    light = BH1750_Read_Light();
+    if(light >= 0) // 返回值大于等于0说明读取成功
+    {
+        printf("光照: %.1f Lux\r\n", light);
+    }
+    else
+    {
+        printf("BH1750 读取失败! 错误码: %.0f\r\n", light);
+    }
+    
+    printf("--------------------------\r\n");
+    
+    // 延时1秒，避免刷屏太快
+    HAL_Delay(1000); 
+    
     /* USER CODE END WHILE */
-    // uint8_t sht30_ret = SHT30_Read_Data(&temperature, &humidity);
-    // if(sht30_ret == 0)
-    // {
-    //   // 处理温湿度数据，例如通过UART发送
-    //   printf("SHT30 读取成功!\r\n");
-    //   printf("温度: %.2f °C\r\n", temperature);
-    //   printf("湿度: %.2f %%RH\r\n", humidity);
-    //   printf("----------------------\r\n");
-    // }
-    // else
-    // {
-    //   printf("SHT30 读取失败! 错误码:%d\r\n", sht30_ret);
-    //   // 1=写地址NACK 2=CMD高字节NACK 3=CMD低字节NACK
-    //   // 4=读地址NACK 5=温度CRC错 6=湿度CRC错
-    // }
     /* USER CODE BEGIN 3 */
-  }
+}
   /* USER CODE END 3 */
 }
 
@@ -214,13 +228,12 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
-
   /* DMA1_Channel4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
