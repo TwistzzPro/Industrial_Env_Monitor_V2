@@ -1,55 +1,24 @@
-# Prerequisites
-*.d
-
-# Object files
+# Keil MDK-ARM 编译生成的临时文件
 *.o
-*.ko
-*.obj
+*.d
+*.crf
 *.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
+*.axf
 *.hex
+*.bin
+*.map
+*.htm
+*.lnp
+*.sct
+*.dep
+*.bak
+*.scvd
+*.iex
+*.lst
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+# Keil 用户级配置文件 (不需要和别人共享)
+*.uvguix.*
+*.uvoptx
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# debug information files
-*.dwo
+# 其他 IDE 配置文件
+.vscode/

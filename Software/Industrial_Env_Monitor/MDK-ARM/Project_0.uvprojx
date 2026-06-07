@@ -190,7 +190,7 @@
             <hadIRAM2>0</hadIRAM2>
             <hadIROM2>0</hadIROM2>
             <StupSel>8</StupSel>
-            <useUlib>0</useUlib>
+            <useUlib>1</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <nSecure>0</nSecure>
@@ -614,6 +614,51 @@
               <FileName>heap_4.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Sensor</GroupName>
+          <Files>
+            <File>
+              <FileName>MYIIC.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\MYIIC.c</FilePath>
+            </File>
+            <File>
+              <FileName>MYIIC.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\MYIIC.h</FilePath>
+            </File>
+            <File>
+              <FileName>BH1750.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\BH1750.c</FilePath>
+            </File>
+            <File>
+              <FileName>BH1750.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\BH1750.h</FilePath>
+            </File>
+            <File>
+              <FileName>SHT30.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\SHT30.c</FilePath>
+            </File>
+            <File>
+              <FileName>SHT30.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\SHT30.h</FilePath>
+            </File>
+            <File>
+              <FileName>RS485.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\RS485.c</FilePath>
+            </File>
+            <File>
+              <FileName>RS485.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\RS485.h</FilePath>
             </File>
           </Files>
         </Group>
