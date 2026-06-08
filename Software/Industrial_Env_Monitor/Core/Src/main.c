@@ -26,6 +26,8 @@
 #include "SHT30.h"
 #include "RS485.h"
 #include "BH1750.h"
+#include "Modbus.h"
+#include "Modbus_crc.h"
 #include "freertos_demo.h"
 /* USER CODE END Includes */
 
@@ -50,9 +52,12 @@ DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
+extern uint16_t Modbus_Reg[10]; // 定义 Modbus 寄存器数组，供 Modbus_Slave_Process() 使用
 float temperature = 0.0f;
 float humidity = 0.0f;
 float light = 0.0f;
+uint16_t Crc_Value;
+uint8_t Crc_Test[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00}; // Modbus RTU 读保持寄存器指令示例
 uint8_t uart_tx[]="Hello, RS485!\r\n";
 /* USER CODE END PV */
 
@@ -104,6 +109,10 @@ int main(void)
   /* USER CODE BEGIN 2 */
   RS485_Init(&huart1, RS_485_DE_GPIO_Port, RS_485_DE_Pin);
   RS485_Send(uart_tx, sizeof(uart_tx)-1);
+  Crc_Value = Modbus_CRC16(Crc_Test,6); // 计算前6个字节的 CRC16 校验码
+  Crc_Test[6] = Crc_Value & 0xFF; // CRC 低字节
+  Crc_Test[7] = (Crc_Value >> 8) & 0xFF; // CRC 高字节
+  RS485_Send(Crc_Test, sizeof(Crc_Test));
   BH1750_Init();
   SHT30_Init();
 	//FreeRTOS_Init();
@@ -116,28 +125,35 @@ while (1)
     // ================== 读取 SHT30 ==================
     if(SHT30_Read_Data(&temperature, &humidity) == 0)
     {
-        printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
+        //printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
+        __disable_irq();
+        Modbus_Reg[0] = (uint16_t)(temperature * 10.0f);
+        Modbus_Reg[1] = (uint16_t)(humidity * 10.0f);
+        __enable_irq();
     }
-    else
-    {
-        printf("SHT30 读取失败!\r\n");
-    }
+    // else
+    // {
+    //     printf("SHT30 读取失败!\r\n");
+    // }
 
-    // ================== 读取 BH1750 ==================
+    // // ================== 读取 BH1750 ==================
     light = BH1750_Read_Light();
     if(light >= 0) // 返回值大于等于0说明读取成功
     {
-        printf("光照: %.1f Lux\r\n", light);
+       // printf("光照: %.1f Lux\r\n", light);
+        __disable_irq();
+        Modbus_Reg[2] = (uint16_t)(light * 10.0f);
+        __enable_irq();
     }
-    else
-    {
-        printf("BH1750 读取失败! 错误码: %.0f\r\n", light);
-    }
+    // else
+    // {
+    //     printf("BH1750 读取失败! 错误码: %.0f\r\n", light);
+    // }
     
-    printf("--------------------------\r\n");
+    // printf("--------------------------\r\n");
     
-    // 延时1秒，避免刷屏太快
-    HAL_Delay(1000); 
+    // // 延时1秒，避免刷屏太快
+     HAL_Delay(100); 
     
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */

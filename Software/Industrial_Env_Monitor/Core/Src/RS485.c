@@ -1,6 +1,9 @@
 #include "RS485.h"
-#include "stm32f1xx_hal.h"
+#include "Modbus.h"
+#include "string.h"
 
+extern uint8_t Rx_Buffer[30];
+extern uint8_t Rx_Len;
 // UART句柄
 static UART_HandleTypeDef *RS485_UART = NULL;
 
@@ -64,7 +67,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 用户自定义回调处理接收到的数据
         RS485_RxCpltCallback(rs485_rx_buf, Size);
         HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-        RS485_Send(rs485_rx_buf, Size); // 回显收到的数据
+        //RS485_Send(rs485_rx_buf, Size); // 回显收到的数据
         // 注意：这里不重启RX DMA，等TX完成后在TxCpltCallback中重启
     }
 }
@@ -83,4 +86,10 @@ void RS485_RxCpltCallback(uint8_t *buf, uint16_t len)
     // 用户实现的接收完成回调函数
     // 这里可以处理接收到的数据，例如解析命令、存储数据等
     // 目前示例中直接回显收到的数据，实际应用中请根据需要修改
+    if(len <= 30)
+    {
+        memcpy(Rx_Buffer, buf, len);
+        Rx_Len = len;
+        Modbus_Slave_Process(); // 处理 Modbus 请求
+    }
 }
