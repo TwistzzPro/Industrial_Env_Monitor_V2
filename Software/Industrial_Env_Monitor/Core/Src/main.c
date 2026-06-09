@@ -151,7 +151,7 @@ while (1)
     // }
     
     // printf("--------------------------\r\n");
-    
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
     // // 延时1秒，避免刷屏太快
      HAL_Delay(100); 
     

@@ -90,6 +90,23 @@ void RS485_RxCpltCallback(uint8_t *buf, uint16_t len)
     {
         memcpy(Rx_Buffer, buf, len);
         Rx_Len = len;
-        Modbus_Slave_Process(); // 处理 Modbus 请求
+        if(!Modbus_Slave_Process())
+        {
+            // 处理失败,重启DMA接收
+            RS485_ReceiveStart();
+        }
+    }
+    else
+    {
+        // 数据过长，丢弃并重启DMA接收
+        RS485_ReceiveStart();
+    }
+}
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart == RS485_UART)
+    {
+        __HAL_UART_CLEAR_PEFLAG(huart);  // 清除 PE/FE/NE 错误标志
+        RS485_ReceiveStart();            // 重启 DMA 接收
     }
 }

@@ -5,9 +5,9 @@
 uint16_t Modbus_Reg[10];
 uint8_t Rx_Buffer[30];
 uint8_t Rx_Len = 0;
-void Modbus_Slave_Process(void)
+uint8_t Modbus_Slave_Process(void)
 {
-    if(Rx_Len == 0) return;
+    if(Rx_Len == 0) return 0;
     uint16_t crc_calculated = Modbus_CRC16(Rx_Buffer, Rx_Len - 2); // 计算接收到的数据的 CRC16 校验码
     uint16_t crc_received = (Rx_Buffer[Rx_Len - 1] << 8) | Rx_Buffer[Rx_Len - 2]; // 从接收缓冲区提取 CRC16 校验码
     if(crc_calculated == crc_received)
@@ -37,11 +37,13 @@ void Modbus_Slave_Process(void)
                     Tx_Buffer[Tx_Len++] = (crc_send >> 8) & 0xFF; // CRC 高字节
 
                     RS485_Send(Tx_Buffer, Tx_Len); // 发送响应数据
+                    return 1; 
 
                 }
             }
         }
     }
     Rx_Len = 0; // 处理完成后清空接收长度，准备下一次接收
+    return 0; // CRC 校验失败或其他错误
 
 }
