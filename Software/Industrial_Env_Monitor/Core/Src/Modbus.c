@@ -1,10 +1,13 @@
 #include "Modbus.h"
 #include "Modbus_crc.h"
 #include "RS485.h"
-
+#include "Modbus_register.h"
+#include "string.h"
 uint16_t Modbus_Reg[10];
 uint8_t Rx_Buffer[30];
 uint8_t Rx_Len = 0;
+uint8_t Tx_Buffer1[30];
+
 uint8_t Modbus_Slave_Process(void)
 {
     if(Rx_Len == 0) return 0;
@@ -13,7 +16,7 @@ uint8_t Modbus_Slave_Process(void)
     if(crc_calculated == crc_received)
     {
         // CRC 校验成功，处理数据
-        if(Rx_Buffer[0] == Slave_Address) // 检查从机地址
+        if(Rx_Buffer[0] == Modbus_Reg[REG_SLAVE_ADDR]) // 检查从机地址
         {
             if(Rx_Buffer[1] == 0x03) // 读保持寄存器功能码
             {
@@ -22,9 +25,9 @@ uint8_t Modbus_Slave_Process(void)
                 if((start_address + register_count) <= 10) // 确保寄存器地址合法
                 {
                     // 这里可以根据需要处理读寄存器的请求，例如将 Modbus_Reg 中的数据打包发送回主机
-                    static uint8_t Tx_Buffer[30];
+                    static uint8_t Tx_Buffer[30];  //加入static是为什么？因为这个缓冲区在函数返回后仍然需要保持数据，不能被销毁。每次调用函数时都会使用同一个缓冲区，避免了频繁的内存分配和释放，提高效率。
                     uint8_t Tx_Len = 0;
-                    Tx_Buffer[Tx_Len++] = Slave_Address; // 从机地址
+                    Tx_Buffer[Tx_Len++] = Modbus_Reg[REG_SLAVE_ADDR]; // 从机地址
                     Tx_Buffer[Tx_Len++] = 0x03; // 功能码
                     Tx_Buffer[Tx_Len++] = register_count * 2; // 字节数
                     for(int i = 0; i<register_count; i++)
@@ -39,6 +42,23 @@ uint8_t Modbus_Slave_Process(void)
                     RS485_Send(Tx_Buffer, Tx_Len); // 发送响应数据
                     return 1; 
 
+                }
+            }
+            else if(Rx_Buffer[1] == 0x06) // 写单个寄存器功能码
+            {
+                uint16_t address = (Rx_Buffer[2] << 8) | Rx_Buffer[3];
+                uint16_t value = (Rx_Buffer[4] << 8) | Rx_Buffer[5];
+                if(address < 10) // 确保寄存器地址合法
+                {
+                    __disable_irq();
+                    Modbus_Reg[address] = value; // 更新寄存器值
+                    __enable_irq();
+                    memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同
+                    uint16_t crc_send = Modbus_CRC16(Tx_Buffer1, 6);
+                    Tx_Buffer1[6] = crc_send & 0xFF; // CRC 低字节
+                    Tx_Buffer1[7] = (crc_send >> 8) & 0xFF; // CRC 高字节
+                    RS485_Send(Tx_Buffer1, 8); // 发送响应数据   
+                    return 1; 
                 }
             }
         }

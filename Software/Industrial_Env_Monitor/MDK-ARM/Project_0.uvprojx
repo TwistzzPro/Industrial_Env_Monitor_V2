@@ -680,6 +680,11 @@
               <FileType>5</FileType>
               <FilePath>..\Core\Inc\Modbus_crc.h</FilePath>
             </File>
+            <File>
+              <FileName>Modbus_register.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\Modbus_register.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

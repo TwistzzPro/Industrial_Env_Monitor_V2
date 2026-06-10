@@ -14,7 +14,7 @@ void IIC_Delay(void)
 // 初始化IIC
 void IIC_Init(void)
 {
-    // 因为使用 CubeMX 生成的代码，MX_GPIO_Init() 已经初始化了 PB8 和 PB9
+    // 因为使用 CubeMX 生成的代码，MX_GPIO_Init() 已经初始化了 PB6 和 PB7
     // 所以这里只需要确保总线释放（SCL和SDA都拉高）即可
     IIC_SCL(1);
     IIC_SDA(1);

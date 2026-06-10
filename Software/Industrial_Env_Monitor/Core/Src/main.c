@@ -28,6 +28,7 @@
 #include "BH1750.h"
 #include "Modbus.h"
 #include "Modbus_crc.h"
+#include "Modbus_register.h"
 #include "freertos_demo.h"
 /* USER CODE END Includes */
 
@@ -52,13 +53,15 @@ DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
-extern uint16_t Modbus_Reg[10]; // 定义 Modbus 寄存器数组，供 Modbus_Slave_Process() 使用
+//extern uint16_t Modbus_Reg[10]; // 定义 Modbus 寄存器数组，供 Modbus_Slave_Process() 使用
+
 float temperature = 0.0f;
 float humidity = 0.0f;
 float light = 0.0f;
 uint16_t Crc_Value;
 uint8_t Crc_Test[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00}; // Modbus RTU 读保持寄存器指令示例
 uint8_t uart_tx[]="Hello, RS485!\r\n";
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -107,6 +110,12 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  /*初始化寄存器  */
+  Modbus_Reg[REG_DEVICE_STATUS] = 0x01; // 设备状态：正常
+  Modbus_Reg[REG_FW_VERSION] = 0x01; // 固件
+  Modbus_Reg[REG_SLAVE_ADDR] = 0x01; // Modbus 从站地址
+
   RS485_Init(&huart1, RS_485_DE_GPIO_Port, RS_485_DE_Pin);
   RS485_Send(uart_tx, sizeof(uart_tx)-1);
   Crc_Value = Modbus_CRC16(Crc_Test,6); // 计算前6个字节的 CRC16 校验码
@@ -127,8 +136,8 @@ while (1)
     {
         //printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
         __disable_irq();
-        Modbus_Reg[0] = (uint16_t)(temperature * 10.0f);
-        Modbus_Reg[1] = (uint16_t)(humidity * 10.0f);
+        Modbus_Reg[REG_TEMP] = (uint16_t)(temperature * 10.0f);
+        Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
         __enable_irq();
     }
     // else
@@ -142,7 +151,7 @@ while (1)
     {
        // printf("光照: %.1f Lux\r\n", light);
         __disable_irq();
-        Modbus_Reg[2] = (uint16_t)(light * 10.0f);
+        Modbus_Reg[REG_LIGHT] = (uint16_t)(light * 10.0f);
         __enable_irq();
     }
     // else
@@ -152,8 +161,7 @@ while (1)
     
     // printf("--------------------------\r\n");
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
-    // // 延时1秒，避免刷屏太快
-     HAL_Delay(100); 
+    HAL_Delay(100); 
     
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */

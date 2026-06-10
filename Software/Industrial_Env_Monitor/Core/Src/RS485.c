@@ -2,8 +2,8 @@
 #include "Modbus.h"
 #include "string.h"
 
-extern uint8_t Rx_Buffer[30];
-extern uint8_t Rx_Len;
+// extern uint8_t Rx_Buffer[30];
+// extern uint8_t Rx_Len;
 // UART句柄
 static UART_HandleTypeDef *RS485_UART = NULL;
 
