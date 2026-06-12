@@ -84,13 +84,13 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void RS485_RxCpltCallback(uint8_t *buf, uint16_t len)
 {
     // 用户实现的接收完成回调函数
-    // 这里可以处理接收到的数据，例如解析命令、存储数据等
-    // 目前示例中直接回显收到的数据，实际应用中请根据需要修改
     if(len <= 30)
     {
         memcpy(Rx_Buffer, buf, len);
         Rx_Len = len;
-        if(!Modbus_Slave_Process())
+        uint8_t result = Modbus_Slave_Process();
+        
+        if(!result)
         {
             // 处理失败,重启DMA接收
             RS485_ReceiveStart();

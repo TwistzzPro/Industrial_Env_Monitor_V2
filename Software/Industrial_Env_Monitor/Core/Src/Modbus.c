@@ -40,6 +40,7 @@ uint8_t Modbus_Slave_Process(void)
                     Tx_Buffer[Tx_Len++] = (crc_send >> 8) & 0xFF; // CRC 高字节
 
                     RS485_Send(Tx_Buffer, Tx_Len); // 发送响应数据
+                    Rx_Len = 0; // 清空接收长度
                     return 1; 
 
                 }
@@ -48,17 +49,26 @@ uint8_t Modbus_Slave_Process(void)
             {
                 uint16_t address = (Rx_Buffer[2] << 8) | Rx_Buffer[3];
                 uint16_t value = (Rx_Buffer[4] << 8) | Rx_Buffer[5];
+                
+                // 诊断：先判断地址是否有效
                 if(address < 10) // 确保寄存器地址合法
                 {
                     __disable_irq();
                     Modbus_Reg[address] = value; // 更新寄存器值
                     __enable_irq();
-                    memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同
+                    memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同（前6字节）
                     uint16_t crc_send = Modbus_CRC16(Tx_Buffer1, 6);
                     Tx_Buffer1[6] = crc_send & 0xFF; // CRC 低字节
                     Tx_Buffer1[7] = (crc_send >> 8) & 0xFF; // CRC 高字节
-                    RS485_Send(Tx_Buffer1, 8); // 发送响应数据   
+                    RS485_Send(Tx_Buffer1, 8); // 发送响应数据
+                    Rx_Len = 0; // 清空接收长度
                     return 1; 
+                }
+                else
+                {
+                    // 地址无效，但仍然返回1表示处理了该帧，否则会重启接收导致问题
+                    Rx_Len = 0;
+                    return 1;
                 }
             }
         }
