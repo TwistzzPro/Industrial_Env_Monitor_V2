@@ -685,6 +685,16 @@
               <FileType>5</FileType>
               <FilePath>..\Core\Inc\Modbus_register.h</FilePath>
             </File>
+            <File>
+              <FileName>ParamSave.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\ParamSave.h</FilePath>
+            </File>
+            <File>
+              <FileName>ParamSave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\ParamSave.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -7,6 +7,9 @@ uint16_t Modbus_Reg[10];
 uint8_t Rx_Buffer[30];
 uint8_t Rx_Len = 0;
 uint8_t Tx_Buffer1[30];
+uint16_t address_06 = 0;
+uint8_t Save_Flag = 0; // 标志位，表示是否需要保存参数到 Flash
+
 
 uint8_t Modbus_Slave_Process(void)
 {
@@ -47,15 +50,16 @@ uint8_t Modbus_Slave_Process(void)
             }
             else if(Rx_Buffer[1] == 0x06) // 写单个寄存器功能码
             {
-                uint16_t address = (Rx_Buffer[2] << 8) | Rx_Buffer[3];
-                uint16_t value = (Rx_Buffer[4] << 8) | Rx_Buffer[5];
+                address_06 = (Rx_Buffer[2] << 8) | Rx_Buffer[3];
+                uint16_t value_06 = (Rx_Buffer[4] << 8) | Rx_Buffer[5];
                 
                 // 诊断：先判断地址是否有效
-                if(address < 10) // 确保寄存器地址合法
+                if(address_06 < 10) // 确保寄存器地址合法
                 {
                     __disable_irq();
-                    Modbus_Reg[address] = value; // 更新寄存器值
+                    Modbus_Reg[address_06] = value_06; // 更新寄存器值
                     __enable_irq();
+                    Save_Flag = 1; // 设置保存标志，主循环中会检查并保存到 Flash
                     memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同（前6字节）
                     uint16_t crc_send = Modbus_CRC16(Tx_Buffer1, 6);
                     Tx_Buffer1[6] = crc_send & 0xFF; // CRC 低字节

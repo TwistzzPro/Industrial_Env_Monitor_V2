@@ -29,6 +29,7 @@
 #include "Modbus.h"
 #include "Modbus_crc.h"
 #include "Modbus_register.h"
+#include "ParamSave.h"
 #include "freertos_demo.h"
 /* USER CODE END Includes */
 
@@ -112,9 +113,10 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*初始化寄存器  */
-  Modbus_Reg[REG_DEVICE_STATUS] = 0x01; // 设备状态：正常
-  Modbus_Reg[REG_FW_VERSION] = 0x01; // 固件
-  Modbus_Reg[REG_SLAVE_ADDR] = 0x01; // Modbus 从站地址
+  Load_Params();
+  // Modbus_Reg[REG_DEVICE_STATUS] = 0x01; // 设备状态：正常
+  // Modbus_Reg[REG_FW_VERSION] = 0x01; // 固件
+  // Modbus_Reg[REG_SLAVE_ADDR] = 0x01; // Modbus 从站地址
 
   RS485_Init(&huart1, RS_485_DE_GPIO_Port, RS_485_DE_Pin);
   RS485_Send(uart_tx, sizeof(uart_tx)-1);
@@ -140,11 +142,6 @@ while (1)
         Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
         __enable_irq();
     }
-    // else
-    // {
-    //     printf("SHT30 读取失败!\r\n");
-    // }
-
     // // ================== 读取 BH1750 ==================
     light = BH1750_Read_Light();
     if(light >= 0) // 返回值大于等于0说明读取成功
@@ -154,12 +151,11 @@ while (1)
         Modbus_Reg[REG_LIGHT] = (uint16_t)(light * 10.0f);
         __enable_irq();
     }
-    // else
-    // {
-    //     printf("BH1750 读取失败! 错误码: %.0f\r\n", light);
-    // }
-    
-    // printf("--------------------------\r\n");
+    if(Save_Flag)
+    {
+        Save_Params(address_06); // 只要保存一个寄存器，函数内部会备份全部寄存器并写回 Flash
+        Save_Flag = 0; // 重置保存标志
+    }
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
     HAL_Delay(100); 
     
