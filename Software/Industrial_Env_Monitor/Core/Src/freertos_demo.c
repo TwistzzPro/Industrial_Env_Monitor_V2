@@ -1,7 +1,11 @@
 #include "freertos_demo.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
+#include "Modbus.h"
+#include "Modbus_register.h"
 #include "main.h"
+
 
 /*启动任务的配置*/
 #define START_TASK_SATCK 128
@@ -17,7 +21,7 @@ void stat_task(void * pvParameters);
 TaskHandle_t task1_handle;
 StackType_t task1_stack[TASK1_SATCK];
 StaticTask_t task1_tcb;
-void task1(void * pvParameters);
+void Sensor_Task(void * pvParameters);
 
 /*任务2的配置*/
 #define TASK2_SATCK 128
@@ -25,7 +29,7 @@ void task1(void * pvParameters);
 TaskHandle_t task2_handle;
 StackType_t task2_stack[TASK2_SATCK];
 StaticTask_t task2_tcb;
-void task2(void * pvParameters);
+void Modbus_Task(void * pvParameters);
 
 /*任务3的配置*/
 #define TASK3_SATCK 128
@@ -33,12 +37,16 @@ void task2(void * pvParameters);
 TaskHandle_t task3_handle;
 StackType_t task3_stack[TASK3_SATCK];
 StaticTask_t task3_tcb;
-void task3(void * pvParameters);
+void System_Task(void * pvParameters);
 
 /*======静态创建方式，需要手动创建两个特殊任务的资源======*/
 /*分配空闲任务*/
 StackType_t idle_task_stack[configMINIMAL_STACK_SIZE];
 StaticTask_t idle_task_tcb;
+/*消息队列*/
+QueueHandle_t modbusCommandQueue = NULL;
+static uint8_t modbusCommandQueueBuf[16 * sizeof(ModbusCommand_t)];
+static StaticQueue_t modbusCommandQueueStruct;
 
 void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
                                         StackType_t ** ppxIdleTaskStackBuffer,
@@ -79,26 +87,28 @@ void FreeRTOS_Init(void)
 }
 void stat_task(void * pvParameters)
 {
+    //创建消息队列
+    modbusCommandQueue = xQueueCreateStatic(16, sizeof(ModbusCommand_t), modbusCommandQueueBuf, &modbusCommandQueueStruct);
     //使用静态创建三个任务
     taskENTER_CRITICAL();
-    task1_handle = xTaskCreateStatic((TaskFunction_t) task1,
-                            (char *) "task1", 
+    task1_handle = xTaskCreateStatic((TaskFunction_t) Sensor_Task,
+                            (char *) "Sensor_Task", 
                             (uint32_t) TASK1_SATCK,
                             (void *) NULL,
                             (UBaseType_t) TASK1_PRIORITY,
                             (StackType_t *) task1_stack,  //任务栈地址
                             (StaticTask_t *)&task1_tcb  //任务句柄地址
                         );
-    task2_handle = xTaskCreateStatic((TaskFunction_t) task2,
-                            (char *) "task2", 
+    task2_handle = xTaskCreateStatic((TaskFunction_t) Modbus_Task,
+                            (char *) "Modbus_Task", 
                             (uint32_t) TASK2_SATCK,
                             (void *) NULL,
                             (UBaseType_t) TASK2_PRIORITY,
                             (StackType_t *) task2_stack,  //任务栈地址
                             (StaticTask_t *)&task2_tcb  //任务句柄地址
                         );
-    task3_handle = xTaskCreateStatic((TaskFunction_t) task3,
-                            (char *) "task3", 
+    task3_handle = xTaskCreateStatic((TaskFunction_t) System_Task,
+                            (char *) "System_Task", 
                             (uint32_t) TASK3_SATCK,
                             (void *) NULL,
                             (UBaseType_t) TASK3_PRIORITY,
@@ -109,35 +119,54 @@ void stat_task(void * pvParameters)
     vTaskDelete(NULL);
 }
 
-void task1(void * pvParameters)
+void Sensor_Task(void * pvParameters)
 {
-    char message[] = "task1...\r\n";
     while(1)
     {
-        HAL_UART_Transmit(&huart1,(uint8_t*)message,sizeof(message),1);
-        HAL_GPIO_TogglePin(Y_LED_GPIO_Port,Y_LED_Pin);
-        vTaskDelay(500);
+        // ================== 读取 SHT30 ==================
+        if(SHT30_Read_Data(&temperature, &humidity) == 0)
+        {
+            //printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
+            __disable_irq();
+            Modbus_Reg[REG_TEMP] = (uint16_t)(temperature * 10.0f);
+            Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
+            __enable_irq();
+        }
+        // // ================== 读取 BH1750 ==================
+        light = BH1750_Read_Light();
+        if(light >= 0) // 返回值大于等于0说明读取成功
+        {
+        // printf("光照: %.1f Lux\r\n", light);
+            __disable_irq();
+            Modbus_Reg[REG_LIGHT] = (uint16_t)(light * 10.0f);
+            __enable_irq();
+        }
+        vTaskDelay(10);
     }
 
 }
-void task2(void * pvParameters)
+void Modbus_Task(void * pvParameters)
 {
-    char message[] = "task2...\r\n";
+    ModbusCommand_t msg;
     while(1)
     {
-        HAL_UART_Transmit(&huart1,(uint8_t*)message,sizeof(message),1);
-        HAL_GPIO_TogglePin(B_LED_GPIO_Port,B_LED_Pin);
-        vTaskDelay(500);
+        if(xQueueReceive(modbusCommandQueue, &msg, portMAX_DELAY) == pdPASS)
+        {
+            // 处理 Modbus 命令
+            if(msg.cmd == 0x06) // 写单个寄存器命令
+            {
+                Save_Params(address_06);
+            }
+        }
     }
 
 }
-void task3(void * pvParameters)
+void System_Task(void * pvParameters)
 {
-    char message[] = "task3...\r\n";
     while(1)
     {
-        HAL_UART_Transmit(&huart1,(uint8_t*)message,sizeof(message),1);
-        vTaskDelay(500);
+        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
+        vTaskDelay(100);
     }
 
 }

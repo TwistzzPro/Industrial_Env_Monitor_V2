@@ -36,7 +36,9 @@ extern UART_HandleTypeDef huart1;
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern float temperature;
+extern float humidity;
+extern float light;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

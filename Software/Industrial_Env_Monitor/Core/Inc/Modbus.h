@@ -2,6 +2,16 @@
 #define MODBUS_H
 
 #include "main.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+typedef struct
+{
+    uint8_t cmd;
+    uint16_t address;
+    uint16_t value;
+} ModbusCommand_t;
+
+extern QueueHandle_t modbusCommandQueue;
 extern uint16_t Modbus_Reg[10];
 extern uint8_t Rx_Buffer[30];
 extern uint8_t Rx_Len;

@@ -3,13 +3,13 @@
 #include "RS485.h"
 #include "Modbus_register.h"
 #include "string.h"
+
 uint16_t Modbus_Reg[10];
 uint8_t Rx_Buffer[30];
 uint8_t Rx_Len = 0;
 uint8_t Tx_Buffer1[30];
 uint16_t address_06 = 0;
 uint8_t Save_Flag = 0; // 标志位，表示是否需要保存参数到 Flash
-
 
 uint8_t Modbus_Slave_Process(void)
 {
@@ -60,6 +60,11 @@ uint8_t Modbus_Slave_Process(void)
                     Modbus_Reg[address_06] = value_06; // 更新寄存器值
                     __enable_irq();
                     Save_Flag = 1; // 设置保存标志，主循环中会检查并保存到 Flash
+                    ModbusCommand_t msg;
+                    msg.cmd = 0x06;
+                    msg.address = address_06;
+                    msg.value = value_06;
+                    xQueueSendFromISR(modbusCommandQueue, &msg, NULL); // 发送命令到队列
                     memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同（前6字节）
                     uint16_t crc_send = Modbus_CRC16(Tx_Buffer1, 6);
                     Tx_Buffer1[6] = crc_send & 0xFF; // CRC 低字节
