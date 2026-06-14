@@ -28,7 +28,12 @@ def read_modbus():
         SER.read(n)
         return None
     resp = SER.read(n)
+    # CRC 校验
     if len(resp) >= 17 and resp[1] == 0x03:
+        crc_calc = modbus_crc16(resp[:len(resp)-2])
+        crc_recv = resp[len(resp)-2] | (resp[len(resp)-1] << 8)
+        if crc_calc != crc_recv:
+            return None
         temp   = ((resp[3]  << 8) | resp[4])  / 10.0
         humi   = ((resp[5]  << 8) | resp[6])  / 10.0
         light  = ((resp[7]  << 8) | resp[8])  / 10.0
@@ -50,7 +55,11 @@ def write_single_register(slave, addr, value):
     if n >= 8:
         resp = SER.read(n)
         if len(resp) >= 8 and resp[1] == 0x06:
-            return f"OK: {resp.hex().upper()}"
+            crc_calc = modbus_crc16(resp[:6])
+            crc_recv = resp[6] | (resp[7] << 8)
+            if crc_calc == crc_recv:
+                return f"OK: {resp.hex().upper()}"
+            return f"CRC ERR: {resp.hex().upper()}"
         return f"ERR: {resp.hex().upper()}"
     SER.read(SER.in_waiting)
     return "ERR: 无回复"

@@ -139,6 +139,10 @@ while (1)
         //printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
         __disable_irq();
         Modbus_Reg[REG_TEMP] = (uint16_t)(temperature * 10.0f);
+        if(Modbus_Reg[REG_TEMP] > Modbus_Reg[REG_TEMP_ALARM]) // 温度报警判断
+            Modbus_Reg[REG_ALARM_STATUS] |= 0x01; // 设置温度报警位
+        else
+            Modbus_Reg[REG_ALARM_STATUS] &= ~0x01; // 清除温度报警位
         Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
         __enable_irq();
     }
@@ -149,12 +153,22 @@ while (1)
        // printf("光照: %.1f Lux\r\n", light);
         __disable_irq();
         Modbus_Reg[REG_LIGHT] = (uint16_t)(light * 10.0f);
+        if(Modbus_Reg[REG_LIGHT] < Modbus_Reg[REG_LIGHT_ALARM]) // 光照报警判断
+            Modbus_Reg[REG_ALARM_STATUS] |= 0x04; // 设置光照报警位
+        else
+            Modbus_Reg[REG_ALARM_STATUS] &= ~0x04; // 清除光照报警位
         __enable_irq();
     }
     if(Save_Flag)
     {
         Save_Params(address_06); // 只要保存一个寄存器，函数内部会备份全部寄存器并写回 Flash
         Save_Flag = 0; // 重置保存标志
+    }
+    if(Modbus_Reg[REG_ALARM_STATUS]==0x07)
+    {
+      __disable_irq();
+      Modbus_Reg[REG_DEVICE_STATUS] = 0x66; // 设备异常
+      __enable_irq();
     }
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
     HAL_Delay(100); 

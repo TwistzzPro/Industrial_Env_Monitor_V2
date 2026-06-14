@@ -20,6 +20,12 @@ void Load_Params(void)
                 Modbus_Reg[i] = 0x05;
             else if (i == REG_SLAVE_ADDR)
                 Modbus_Reg[i] = 0x01;       // 默认从站地址
+            else if (i == REG_TEMP_ALARM)
+                Modbus_Reg[i] = 300;        // 默认温度报警阈值 30.0°C
+            else if (i == REG_HUMI_ALARM)
+                Modbus_Reg[i] = 700;        // 默认湿度报警阈值 70.0%RH
+            else if (i == REG_LIGHT_ALARM)
+                Modbus_Reg[i] = 1000;       // 默认光照报警阈值 100.0 Lux
             else
                 Modbus_Reg[i] = 0;
         }
