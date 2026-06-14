@@ -29,7 +29,7 @@ uint8_t Modbus_Slave_Process(void)
                 {
                     // 这里可以根据需要处理读寄存器的请求，例如将 Modbus_Reg 中的数据打包发送回主机
                     static uint8_t Tx_Buffer[30];  //加入static是为什么？因为这个缓冲区在函数返回后仍然需要保持数据，不能被销毁。每次调用函数时都会使用同一个缓冲区，避免了频繁的内存分配和释放，提高效率。
-                    uint8_t Tx_Len = 0;
+                    uint8_t Tx_Len = 0;                            //在函数里面的static变量不是寿命只有整个函数运行期间吗？为什么需要保持数据？
                     Tx_Buffer[Tx_Len++] = Modbus_Reg[REG_SLAVE_ADDR]; // 从机地址
                     Tx_Buffer[Tx_Len++] = 0x03; // 功能码
                     Tx_Buffer[Tx_Len++] = register_count * 2; // 字节数
@@ -64,7 +64,7 @@ uint8_t Modbus_Slave_Process(void)
                     msg.cmd = 0x06;
                     msg.address = address_06;
                     msg.value = value_06;
-                    xQueueSendFromISR(modbusCommandQueue, &msg, NULL); // 发送命令到队列
+                    //xQueueSendFromISR(modbusCommandQueue, &msg, NULL); // 发送命令到队列
                     memcpy(Tx_Buffer1, Rx_Buffer, 6); // 响应数据与请求数据相同（前6字节）
                     uint16_t crc_send = Modbus_CRC16(Tx_Buffer1, 6);
                     Tx_Buffer1[6] = crc_send & 0xFF; // CRC 低字节

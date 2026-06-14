@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button as MPLButton, TextBox
 
-SER = serial.Serial('COM7', 115200, timeout=1)
+SER = serial.Serial('COM11', 115200, timeout=1)
 running = True
 
 # ---- Modbus CRC16 ----

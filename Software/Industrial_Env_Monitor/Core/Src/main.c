@@ -144,6 +144,10 @@ while (1)
         else
             Modbus_Reg[REG_ALARM_STATUS] &= ~0x01; // 清除温度报警位
         Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
+        if(Modbus_Reg[REG_HUMI] > Modbus_Reg[REG_HUMI_ALARM]) // 湿度报警判断
+            Modbus_Reg[REG_ALARM_STATUS] |= 0x02; // 设置湿度报警位
+        else
+            Modbus_Reg[REG_ALARM_STATUS] &= ~0x02; // 清除湿度报警位
         __enable_irq();
     }
     // // ================== 读取 BH1750 ==================
