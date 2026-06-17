@@ -30,6 +30,7 @@
 #include "Modbus_crc.h"
 #include "Modbus_register.h"
 #include "ParamSave.h"
+#include "Sensor.h"
 #include "freertos_demo.h"
 /* USER CODE END Includes */
 
@@ -56,14 +57,11 @@ DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
-//extern uint16_t Modbus_Reg[10]; // 定义 Modbus 寄存器数组，供 Modbus_Slave_Process() 使用
 
 float temperature = 0.0f;
 float humidity = 0.0f;
 float light = 0.0f;
 uint16_t Crc_Value;
-uint8_t Crc_Test[8] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00}; // Modbus RTU 读保持寄存器指令示例
-uint8_t uart_tx[]="Hello, RS485!\r\n";
 
 /* USER CODE END PV */
 
@@ -118,16 +116,7 @@ int main(void)
 
   /*初始化寄存器  */
   Load_Params();
-  // Modbus_Reg[REG_DEVICE_STATUS] = 0x01; // 设备状态：正常
-  // Modbus_Reg[REG_FW_VERSION] = 0x01; // 固件
-  // Modbus_Reg[REG_SLAVE_ADDR] = 0x01; // Modbus 从站地址
-
   RS485_Init(&huart1, RS_485_DE_GPIO_Port, RS_485_DE_Pin);
-  RS485_Send(uart_tx, sizeof(uart_tx)-1);
-  Crc_Value = Modbus_CRC16(Crc_Test,6); // 计算前6个字节的 CRC16 校验码
-  Crc_Test[6] = Crc_Value & 0xFF; // CRC 低字节
-  Crc_Test[7] = (Crc_Value >> 8) & 0xFF; // CRC 高字节
-  RS485_Send(Crc_Test, sizeof(Crc_Test));
   BH1750_Init();
   SHT30_Init();
 	//FreeRTOS_Init();
@@ -137,47 +126,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 while (1)
 {
-    // ================== 读取 SHT30 ==================
-    if(SHT30_Read_Data(&temperature, &humidity) == 0)
-    {
-        //printf("温度: %.2f °C, 湿度: %.2f %%RH\r\n", temperature,humidity);
-        __disable_irq();
-        Modbus_Reg[REG_TEMP] = (uint16_t)(temperature * 10.0f);
-        if(Modbus_Reg[REG_TEMP] > Modbus_Reg[REG_TEMP_ALARM]) // 温度报警判断
-            Modbus_Reg[REG_ALARM_STATUS] |= 0x01; // 设置温度报警位
-        else
-            Modbus_Reg[REG_ALARM_STATUS] &= ~0x01; // 清除温度报警位
-        Modbus_Reg[REG_HUMI] = (uint16_t)(humidity * 10.0f);
-        if(Modbus_Reg[REG_HUMI] > Modbus_Reg[REG_HUMI_ALARM]) // 湿度报警判断
-            Modbus_Reg[REG_ALARM_STATUS] |= 0x02; // 设置湿度报警位
-        else
-            Modbus_Reg[REG_ALARM_STATUS] &= ~0x02; // 清除湿度报警位
-        __enable_irq();
-    }
-    // // ================== 读取 BH1750 ==================
-    light = BH1750_Read_Light();
-    if(light >= 0) // 返回值大于等于0说明读取成功
-    {
-       // printf("光照: %.1f Lux\r\n", light);
-        __disable_irq();
-        Modbus_Reg[REG_LIGHT] = (uint16_t)(light * 10.0f);
-        if(Modbus_Reg[REG_LIGHT] < Modbus_Reg[REG_LIGHT_ALARM]) // 光照报警判断
-            Modbus_Reg[REG_ALARM_STATUS] |= 0x04; // 设置光照报警位
-        else
-            Modbus_Reg[REG_ALARM_STATUS] &= ~0x04; // 清除光照报警位
-        __enable_irq();
-    }
-    if(Save_Flag)
-    {
-        Save_Params(address_06); // 只要保存一个寄存器，函数内部会备份全部寄存器并写回 Flash
-        Save_Flag = 0; // 重置保存标志
-    }
-    if(Modbus_Reg[REG_ALARM_STATUS]==0x07)
-    {
-      __disable_irq();
-      Modbus_Reg[REG_DEVICE_STATUS] = 0x66; // 设备异常
-      __enable_irq();
-    }
+    Sensor_Read();
     HAL_IWDG_Refresh(&hiwdg); // 喂狗，防止看门狗复位
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin); // 翻转LED，观察程序运行状态
     HAL_Delay(100); 
@@ -383,35 +332,7 @@ int fputc(int ch, FILE *f)
     HAL_GPIO_WritePin(RS_485_DE_GPIO_Port, RS_485_DE_Pin, GPIO_PIN_RESET);
     return ch;
 }
-/* 接收完成回调 - 自动切换到发送模式 */
-// void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-// {
-//     if (huart->Instance == USART1)
-//     {
-//         // LED翻转，用于可视化接收事件
-//         HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
-//         // 切换到发送模式
-//         RS485_Tx_Enable();
-
-//         // 使用中断方式发送回显（注意：项目没有配置TX DMA，只能用IT方式）
-//         HAL_UART_Transmit_IT(&huart1, uart_rx_buffer, Size);
-//     }
-// }
-
-/* 发送完成回调 - 自动切回接收模式 */
-// void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-// {
-//     if (huart->Instance == USART1)
-//     {
-//         // 发送完成后，切换回接收模式
-//         RS485_Rx_Enable();
-
-//         // 重新启动DMA接收以监听下一帧
-//         HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uart_rx_buffer, sizeof(uart_rx_buffer));
-//         __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
-//     }
-// }
 /* USER CODE END 4 */
 
 /**

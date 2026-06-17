@@ -3,8 +3,10 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Button as MPLButton, TextBox
+
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei'] # 优先使用黑体或微软雅黑
 plt.rcParams['axes.unicode_minus'] = False # 解决有时候负号显示成方块的问题
+
 # 开启超时机制，确保没有数据时不会无限死等
 SER = serial.Serial('COM11', 115200, timeout=1)
 running = True
@@ -100,33 +102,30 @@ def animate(_):
         temp_data.pop(0); humi_data.pop(0); light_data.pop(0)
         
     ax.clear()
-    ax.plot(temp_data,  label='Temperature (°C)',  color='#f87171')
-    ax.plot(humi_data,  label='Humidity (%)',       color='#34d399')
-    ax.plot(light_data, label='Illuminance (Lux)',  color='#22d3ee')
-    ax.legend(loc='lower left', fontsize=8) # 图例移到左下角，给左上角警报留出空间
-    ax.set_title('Industrial Env Monitor V2')
+    ax.plot(temp_data,  label='温度 (°C)',  color='#f87171')
+    ax.plot(humi_data,  label='湿度 (%)',       color='#34d399')
+    ax.plot(light_data, label='光照 (Lux)',  color='#22d3ee')
+    
+    # 图例移到图表右上方外侧，横向排列
+    ax.legend(loc='lower right', bbox_to_anchor=(1.0, 1.02), ncol=3, fontsize=8) 
 
-    # ================= 🌟 核心新增：Modbus 位域警报解析 =================
+    # ================= 🌟 Modbus 位域警报解析 =================
     alarm_word = latest[9] # 第 10 个寄存器
     active_alarms = []
     
-    # 检查 bit0 (0x01)
     if alarm_word & 0x01:
         active_alarms.append("温度过高警报！")
-    # 检查 bit1 (0x02)
     if alarm_word & 0x02:
         active_alarms.append("湿度异常警报！")
-    # 检查 bit2 (0x04)
     if alarm_word & 0x04:
         active_alarms.append("光照过低警报！")
         
-    # 如果有任何警报被触发，在图表左上角弹框显示
+    # 警报弹框移到图表左上方外侧
     if active_alarms:
         alarm_string = "【系统警报】\n" + "\n".join(active_alarms)
-        # 绘制在左上角 (x=0.02, y=0.96)
-        ax.text(0.02, 0.96, alarm_string, transform=ax.transAxes,
+        ax.text(0.0, 1.02, alarm_string, transform=ax.transAxes,
                 fontsize=10, color='#b91c1c', fontweight='bold', 
-                verticalalignment='top', horizontalalignment='left',
+                verticalalignment='bottom', horizontalalignment='left',
                 bbox=dict(boxstyle='round,pad=0.5', facecolor='#fee2e2', edgecolor='#ef4444', alpha=0.9))
 
     # ================= 右侧：10个寄存器数值数据显示 =================
@@ -143,9 +142,10 @@ def animate(_):
         f"Reg9 (警报位): {latest[9]} (0x{latest[9]:02X})",
     ]
     
+    # 寄存器文本移到图表右侧外侧，对齐方式改为靠左
     for i, line in enumerate(texts):
-        ax.text(0.99, 0.98 - i*0.045, line, transform=ax.transAxes,
-                fontsize=9, verticalalignment='top', horizontalalignment='right',
+        ax.text(1.02, 1.0 - i*0.06, line, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top', horizontalalignment='left',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
 def toggle_pause(_):
@@ -172,36 +172,42 @@ def on_write(_):
         log_lines.append(f"ERR: {e}")
         log_text.set_text("\n".join(log_lines))
 
-log_lines = ["日志:"]
+log_lines = ["LOG:"]
 
 # ---- 构建界面 ----
 fig = plt.figure("Env Monitor", figsize=(11, 5.5))
 ax = fig.add_subplot(111)
-plt.subplots_adjust(bottom=0.20)
 
-# 暂停按钮
-btn_ax = fig.add_axes([0.91, 0.02, 0.07, 0.06])
+# 【优化修改 1】bottom 增加到 0.28，为主图下方的 X 轴刻度标签留出空间，彻底解决遮挡
+plt.subplots_adjust(bottom=0.28, right=0.75, top=0.85)
+
+# 全局大标题
+fig.suptitle('Industrial Env Monitor V2', fontsize=14, fontweight='bold', y=0.96)
+
+# 【优化修改 2】下移暂停按钮（Y坐标调整为 0.06），与左侧的控制输入框保持水平齐平
+btn_ax = fig.add_axes([0.91, 0.06, 0.07, 0.06])
 btn_pause = MPLButton(btn_ax, 'Pause')
 btn_pause.on_clicked(toggle_pause)
 
-# 写寄存器控件
-fig.text(0.02, 0.14, "Slave:", fontsize=9, color='black')
-tb_slave_ax = fig.add_axes([0.08, 0.12, 0.06, 0.04])
+# 【优化修改 3】将写寄存器控件整体下移（Y坐标从原来的 0.12/0.14 下调到 0.06/0.08）
+fig.text(0.02, 0.08, "Slave:", fontsize=9, color='black')
+tb_slave_ax = fig.add_axes([0.08, 0.06, 0.06, 0.04])
 tb_slave = TextBox(tb_slave_ax, '', initial='1')
 
-fig.text(0.16, 0.14, "Reg:", fontsize=9, color='black')
-tb_addr_ax = fig.add_axes([0.21, 0.12, 0.06, 0.04])
+fig.text(0.16, 0.08, "Reg:", fontsize=9, color='black')
+tb_addr_ax = fig.add_axes([0.21, 0.06, 0.06, 0.04])
 tb_addr = TextBox(tb_addr_ax, '', initial='5')
 
-fig.text(0.29, 0.14, "Value:", fontsize=9, color='black')
-tb_value_ax = fig.add_axes([0.35, 0.12, 0.07, 0.04])
+fig.text(0.29, 0.08, "Value:", fontsize=9, color='black')
+tb_value_ax = fig.add_axes([0.35, 0.06, 0.07, 0.04])
 tb_value = TextBox(tb_value_ax, '', initial='2')
 
-write_btn_ax = fig.add_axes([0.44, 0.12, 0.08, 0.04])
+write_btn_ax = fig.add_axes([0.44, 0.06, 0.08, 0.04])
 write_btn = MPLButton(write_btn_ax, 'Write 06')
 write_btn.on_clicked(on_write)
 
-log_text = fig.text(0.55, 0.12, "\n".join(log_lines), fontsize=8,
+# 【优化修改 4】同步下移日志文本（Y坐标改为 0.06），向上生长时不会碰到坐标轴
+log_text = fig.text(0.55, 0.06, "\n".join(log_lines), fontsize=8,
                      fontfamily='monospace', va='bottom',
                      bbox=dict(boxstyle='round', facecolor='#f0f0f0', alpha=0.9))
 
