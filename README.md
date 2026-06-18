@@ -16,6 +16,8 @@
 * Modbus Poll
 ![alt text](Test1.png) ![alt text](Test2.png)
 * 简易上位机
+![alt text](Test3.png)
+* 实物图
 ![alt text](634c4ac7f41ac4fe7377f19a141ec551.jpg)![alt text](320d81945fcfeb117cdda0bc685a87e9.jpg)
 
 ### 环境数据采集
