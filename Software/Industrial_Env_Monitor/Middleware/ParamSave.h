@@ -6,6 +6,7 @@
 #include "Modbus_register.h"
 
 void Load_Params(void);
-void Save_Params(uint16_t Reg_Address);
-
+void Save_Params(void);
+//void Write_Params(void);
+void Scan_Flash(void);
 #endif /* __PARAM_SAVE_H */

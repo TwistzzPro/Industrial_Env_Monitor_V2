@@ -1,17 +1,40 @@
 /*掉电保存文件*/
 #include "ParamSave.h"
 
-#define PARAM_SAVE_ADDRESS 0x0800FC00 // 这是STM32F103C8T6的最后一个扇区地址，掉电保存数据将存储在这里
+#define PARAM_SAVE_ADDRESS 0x0800FC00 // 这是STM32F103C8T6的最后一个页的起始地址，掉电保存数据将存储在这里
+#define Reg_Num 10   //寄存器数量
+#define Regs_Size 20 //每组数据所占用的字节
+#define Write_Num 51 //每页可写入的次数
+
+// 一共10个寄存器，每一个是两个字节，每写入一次要占用20个字节，一页有1024个字节，可以写51次，写满51次之后在执行擦除
+// 那每次上电之后读取数据也要偏移地址
 FLASH_EraseInitTypeDef EraseInitStruct;
 
 uint32_t PageError = 0;
+static uint8_t Current_Number;
+
+void Scan_Flash(void)               //扫描flash
+{
+    Current_Number = 0;
+    for(uint8_t i = 0 ; i < Write_Num ; i++)
+    {
+        uint32_t Flash_Addr = PARAM_SAVE_ADDRESS + i * 20;
+        uint16_t Flash_Data = *(__IO uint16_t *)Flash_Addr;
+        if(Flash_Data == 0xFFFF)
+        {
+            Current_Number = i;
+            return;
+        }
+    }
+    Current_Number = Write_Num;
+}
 
 void Load_Params(void)
 {
-    for(uint8_t i = 0; i < 10; i++)
+    Scan_Flash();
+    if(Current_Number == 0)
     {
-        uint16_t *param_value = (uint16_t *)(PARAM_SAVE_ADDRESS + i*2); // 每个参数占用2字节
-        if(*param_value == 0xFFFF) // 判断是否有有效数据，0xFFFF表示未写入过
+        for(uint8_t i = 0; i < Reg_Num; i++)
         {
             // Flash 从未写过 → 用默认值
             if (i == REG_DEVICE_STATUS)
@@ -29,52 +52,58 @@ void Load_Params(void)
             else
                 Modbus_Reg[i] = 0;
         }
+    }
         else
+    {
+        // 从Flash读取参数值
+        uint8_t Read_Slot = Current_Number - 1;
+        for(uint8_t i = 0 ; i < Reg_Num ; i++)
         {
-            // 从Flash读取参数值
+            uint16_t *param_value = (uint16_t *)(PARAM_SAVE_ADDRESS + Read_Slot * Reg_Num + i * 2);
             Modbus_Reg[i] = *param_value; // 从Flash读取参数值到Modbus寄存器数组中
         }
+
     }
 }
-void Save_Params(uint16_t Reg_Address)
+
+// void Write_Params(void)              //滚动写入                 有个问题就是掉电之后，num也会清零，怎么办
+// {
+//     HAL_FLASH_Unlock();
+//     for(uint8_t i = 0; i < Reg_Num ; i++)
+//     {
+//         HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
+//                           PARAM_SAVE_ADDRESS + Current_Number * 20  + i * 2,
+//                           Modbus_Reg[i]);
+//     }
+//     HAL_FLASH_Lock();
+//     Current_Number++;
+// }
+
+void Save_Params(void)
 {
-    // 1. 擦除前先备份全部寄存器（擦除会让 Flash 全部变 0xFFFF）
-    uint16_t backup[10];
-    for (uint8_t i = 0; i < 10; i++)
-    {
-        // 直接读 Flash 当前值作为备份
-        uint16_t *flash_addr = (uint16_t *)(PARAM_SAVE_ADDRESS + i * 2);
-        backup[i] = *flash_addr;
-    }
-    // 把要修改的寄存器更新到备份中
-    backup[Reg_Address] = Modbus_Reg[Reg_Address];
-
-    // 2. 解锁并擦除
     HAL_FLASH_Unlock();
-    EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
-    EraseInitStruct.PageAddress = PARAM_SAVE_ADDRESS;
-    EraseInitStruct.NbPages     = 1;
-    if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
+    if(Current_Number >= Write_Num)
     {
-        HAL_FLASH_Lock();
-        return;
-    }
-
-    // 3. 全部写回（只写非 0xFFFF 的有效值）
-    for (uint8_t i = 0; i < 10; i++)
-    {
-        if (backup[i] != 0xFFFF)
+        EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+        EraseInitStruct.PageAddress = PARAM_SAVE_ADDRESS;
+        EraseInitStruct.NbPages     = 1;
+        if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
         {
-            if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
-                                  PARAM_SAVE_ADDRESS + i * 2,
-                                  backup[i]) != HAL_OK)
-            {
-                HAL_FLASH_Lock();
-                return;
-            }
+            Current_Number = 0;
+        }
+        else
+        {
+            HAL_FLASH_Lock();
+            return;
         }
     }
-
-    HAL_FLASH_Lock();
+    for(uint8_t i = 0; i < Reg_Num ; i++)
+    {
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
+                          PARAM_SAVE_ADDRESS + Current_Number * 20  + i * 2,
+                          Modbus_Reg[i]);
+    }
+        Current_Number ++;
+        HAL_FLASH_Lock();
 }
 

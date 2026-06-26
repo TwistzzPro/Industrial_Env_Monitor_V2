@@ -37,7 +37,7 @@ void Sensor_Read(void)
     }
     if(Save_Flag)
     {
-        Save_Params(address_06); // 只要保存一个寄存器，函数内部会备份全部寄存器并写回 Flash
+        Save_Params(); // 只要保存一个寄存器，函数内部会备份全部寄存器并写回 Flash
         Save_Flag = 0; // 重置保存标志
     }
     if(Modbus_Reg[REG_ALARM_STATUS]==0x07)
