@@ -59,7 +59,7 @@ void Load_Params(void)
         uint8_t Read_Slot = Current_Number - 1;
         for(uint8_t i = 0 ; i < Reg_Num ; i++)
         {
-            uint16_t *param_value = (uint16_t *)(PARAM_SAVE_ADDRESS + Read_Slot * Reg_Num + i * 2);
+            uint16_t *param_value = (uint16_t *)(PARAM_SAVE_ADDRESS + Read_Slot * Regs_Size + i * 2);
             Modbus_Reg[i] = *param_value; // 从Flash读取参数值到Modbus寄存器数组中
         }
 
@@ -89,18 +89,18 @@ void Save_Params(void)
         EraseInitStruct.NbPages     = 1;
         if (HAL_FLASHEx_Erase(&EraseInitStruct, &PageError) != HAL_OK)
         {
-            Current_Number = 0;
+            HAL_FLASH_Lock();
+            return;
         }
         else
         {
-            HAL_FLASH_Lock();
-            return;
+            Current_Number = 0;
         }
     }
     for(uint8_t i = 0; i < Reg_Num ; i++)
     {
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
-                          PARAM_SAVE_ADDRESS + Current_Number * 20  + i * 2,
+                          PARAM_SAVE_ADDRESS + Current_Number * Regs_Size  + i * 2,
                           Modbus_Reg[i]);
     }
         Current_Number ++;

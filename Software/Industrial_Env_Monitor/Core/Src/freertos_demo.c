@@ -155,7 +155,7 @@ void Modbus_Task(void * pvParameters)
             // 处理 Modbus 命令
             if(msg.cmd == 0x06) // 写单个寄存器命令
             {
-                Save_Params(address_06);
+                Save_Params();
             }
         }
     }
